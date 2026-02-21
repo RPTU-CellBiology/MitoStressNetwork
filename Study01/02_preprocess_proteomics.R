@@ -26,7 +26,8 @@ df_prot <- list.files(prot_data_dir, recursive = FALSE, full.names = FALSE) |>
   mutate(Sample.Type = str_split_i(str_remove(Filename, "\\.txt$"), "_", 9)) |>
   mutate(data = map(Filename, read_prot)) |>
   unnest(data) |>
-  select(-Filename)
+  mutate(Gene.ENSEMBL.ID = sub("(\\.\\d+)$", "", idx)) |>
+  select(Sample.ID, Sample.Type, Gene.ENSEMBL.ID, Protein.Abundance.Log2)
 
 ## Metadata
 read_meta <- function(filename, directory = meta_data_dir) {
