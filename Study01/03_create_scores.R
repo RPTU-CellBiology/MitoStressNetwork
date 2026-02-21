@@ -6,9 +6,9 @@ library(msigdbr)
 library(magrittr)
 library(GSVA)
 library(ggplot2)
-library(ggridges)
-library(forcats)
 library(GGally)
+
+here::i_am(".Rprofile")
 
 data_dir <- here("Data", "CPTAC")
 
@@ -28,7 +28,8 @@ df_diff <- df_prot |>
               names_from = Sample.Type,
               id_cols = c(Gene.ENSEMBL.ID, Sample.ID)) |>
   mutate(Log2FC = Tumor - Normal) |>
-  drop_na(Log2FC)
+  drop_na(Log2FC) |>
+  write_parquet(here(data_dir, "cptac_diff.parquet"))
 
 # Enrichment Analysis (ssGSEA)
 ## Get gene sets
@@ -61,6 +62,9 @@ df_gsea <- gsea_result |>
 
 ## Plot enrichment score distributions
 plot_enrichment_scores <- function (df) {
+  require(ggridges)
+  require(forcats)
+
   colors <- rev(RColorBrewer::brewer.pal(11, "RdBu"))
 
   df |>
@@ -87,6 +91,7 @@ df_scores <- df_gsea |>
     Score.Glycolysis = mean(ssGSEA.Score.Z[GeneSet == "HALLMARK_GLYCOLYSIS"]),
     Score.MitoFitness = mean(ssGSEA.Score.Z[GeneSet == "HALLMARK_OXIDATIVE_PHOSPHORYLATION"]),
     .by = Sample.ID) |>
+  mutate(across(starts_with("Score."), \(x) scale(x)[, 1])) |>
   write_parquet(here(data_dir, "sample_scores.parquet"))
 
 ## Correlate Scores
@@ -96,7 +101,7 @@ df_scores |>
 
 ## Plot GSEA scores of samples with low mito fitness
 df_gsea |>
-  semi_join(df_scores |> filter(Score.MitoFitness < -0.2), by = "Sample.ID") |>
+  semi_join(df_scores |> filter(Score.MitoFitness < -1), by = "Sample.ID") |>
   plot_enrichment_scores()
 
 # TODO: Consider adding MYC targets to proliferation scores (also cancer stage and other clinical indicators)
